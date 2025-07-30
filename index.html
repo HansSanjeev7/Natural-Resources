@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Natural Resources Adventure!</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Earthy & Playful -->
+    <!-- Application Structure Plan: A linear, scene-based journey is best for young learners. The app starts with a welcome screen and moves through key topics: 'What are Resources?', individual resource explorations (Sun, Water, etc.), and a final 'Be a Helper!' section. This guided path prevents confusion and uses interactive reveals and a simple quiz to keep children engaged. The structure is designed to be an interactive storybook, making abstract concepts tangible and fun. -->
+    <!-- Visualization & Content Choices: Report Info: Water uses -> Goal: Compare simple data -> Viz: Bar Chart (Chart.js) -> Interaction: Hover for fun facts -> Justification: Introduces basic data visualization playfully. Report Info: Conservation actions -> Goal: Encourage participation -> Presentation: Interactive checklist -> Interaction: Click to 'pledge' and see a visual reward (a star appears) -> Justification: Promotes active learning and a sense of commitment. All other concepts use large, friendly HTML/CSS graphics with click-to-reveal text, which is an intuitive interaction for children. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Fredoka', sans-serif;
+        }
+        .bg-cream { background-color: #FFFBF5; }
+        .text-brown { color: #8D5B4C; }
+        .bg-sunny-yellow { background-color: #FFD670; }
+        .bg-water-blue { background-color: #A2D2FF; }
+        .bg-forest-green { background-color: #A8D8B9; }
+        .bg-earth-brown { background-color: #B08968; }
+        .bg-sky-blue { background-color: #CDE8F4; }
+        .bg-stone-gray { background-color: #D1D5DB; }
+        .page {
+            min-height: 100vh;
+            scroll-snap-align: start;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .page.active {
+            display: flex;
+        }
+        .nav-button {
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+        .nav-button:hover {
+            transform: scale(1.1);
+        }
+        .nav-button.active {
+            transform: scale(1.1);
+            box-shadow: 0 0 0 4px #FFFBF5, 0 0 0 6px #8D5B4C;
+        }
+        .fun-button {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .fun-button:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        }
+        .fun-button:active {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .sun-graphic {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #FFD670 60%, transparent 61%);
+            position: relative;
+            animation: spin 20s linear infinite;
+        }
+        .sun-ray {
+            position: absolute;
+            width: 20px;
+            height: 40px;
+            background-color: #FFD670;
+            top: 50%;
+            left: 50%;
+            transform-origin: 10px 100px;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .tree-graphic {
+            width: 200px;
+            height: 250px;
+            position: relative;
+        }
+        .tree-trunk {
+            width: 50px;
+            height: 100px;
+            background-color: #8D5B4C;
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 10px 10px 0 0;
+        }
+        .tree-leaves {
+            width: 200px;
+            height: 200px;
+            background-color: #A8D8B9;
+            border-radius: 50%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .tree-leaves::before, .tree-leaves::after {
+            content: '';
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            background-color: #A8D8B9;
+            border-radius: 50%;
+        }
+        .tree-leaves::before {
+            top: -50px;
+            left: 25px;
+        }
+        .tree-leaves::after {
+            top: 25px;
+            left: -50px;
+        }
+        .info-bubble {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+        .info-bubble.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .pledge-button.pledged {
+            background-color: #FFD670;
+            color: #8D5B4C;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 40vh;
+        }
+    </style>
+</head>
+<body class="bg-cream text-brown">
+
+    <nav class="fixed top-0 left-0 right-0 z-10 bg-cream/80 backdrop-blur-sm p-2 shadow-md">
+        <div id="nav-container" class="flex justify-center items-center space-x-2 sm:space-x-4 overflow-x-auto">
+        </div>
+    </nav>
+
+    <main id="app-container">
+        <!-- Page 0: Welcome -->
+        <div id="page-0" class="page active text-center p-4">
+            <h1 class="text-5xl md:text-7xl font-bold mb-4">🌍 Adventure Time!</h1>
+            <p class="text-xl md:text-2xl mb-8">Let's learn about Earth's amazing treasures!</p>
+            <button onclick="navigateTo(1)" class="fun-button bg-forest-green text-white text-2xl font-bold py-4 px-8 rounded-full shadow-lg">Let's Go!</button>
+        </div>
+
+        <!-- Page 1: What are Natural Resources? -->
+        <div id="page-1" class="page text-center p-4">
+            <h2 class="text-4xl md:text-6xl font-bold mb-4">What are Natural Resources? 🤔</h2>
+            <p class="text-lg md:text-xl max-w-2xl mx-auto mb-6">Imagine everything you see outside – the trees, water, sunshine, and even the air! These are all gifts from Mother Earth.</p>
+            <p class="text-2xl md:text-3xl font-bold bg-sunny-yellow p-4 rounded-2xl shadow-md">They are things we find in nature that we use to live and play!</p>
+        </div>
+
+        <!-- Page 2: Sunshine -->
+        <div id="page-2" class="page text-center p-4">
+            <h2 class="text-4xl md:text-6xl font-bold mb-8">Sunshine Power! ☀️</h2>
+            <div class="sun-graphic mb-8 mx-auto">
+                <div class="sun-ray" style="transform: rotate(0deg) translateX(80px);"></div>
+                <div class="sun-ray" style="transform: rotate(45deg) translateX(80px);"></div>
+                <div class="sun-ray" style="transform: rotate(90deg) translateX(80px);"></div>
+                <div class="sun-ray" style="transform: rotate(135deg) translateX(80px);"></div>
+                <div class="sun-ray" style="transform: rotate(180deg) translateX(80px);"></div>
+                <div class="sun-ray" style="transform: rotate(225deg) translateX(80px);"></div>
+                <div class="sun-ray" style="transform: rotate(270deg) translateX(80px);"></div>
+                <div class="sun-ray" style="transform: rotate(315deg) translateX(80px);"></div>
+            </div>
+            <p class="text-lg md:text-xl max-w-xl mx-auto mb-6">The sun gives us light and keeps us warm! It helps plants grow big and strong. Click the button to see what it does!</p>
+            <button id="sun-fact-button" class="fun-button bg-sunny-yellow text-brown text-xl font-bold py-3 px-6 rounded-full shadow-lg">Tell me more!</button>
+            <div id="sun-facts" class="mt-6 space-y-2"></div>
+        </div>
+
+        <!-- Page 3: Water -->
+        <div id="page-3" class="page text-center p-4 w-full">
+            <h2 class="text-4xl md:text-6xl font-bold mb-4">Wonderful Water! 💧</h2>
+            <p class="text-lg md:text-xl max-w-xl mx-auto mb-6">Water is super important! We use it for so many things every day. Here are a few!</p>
+            <div class="chart-container">
+                <canvas id="waterChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Page 4: Air -->
+        <div id="page-4" class="page text-center p-4">
+            <h2 class="text-4xl md:text-6xl font-bold mb-8">Fresh Air to Breathe! 🌬️</h2>
+            <div class="text-8xl mb-8 animate-bounce">☁️</div>
+            <p class="text-lg md:text-xl max-w-xl mx-auto mb-4">Take a deep breath! Ahhh, that's fresh air! We need clean air to live and be healthy.</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+                <div class="bg-sky-blue p-4 rounded-2xl shadow-md">
+                    <p class="text-5xl mb-2">😮</p>
+                    <p class="font-semibold">We breathe it every second!</p>
+                </div>
+                <div class="bg-sky-blue p-4 rounded-2xl shadow-md">
+                    <p class="text-5xl mb-2">🪁</p>
+                    <p class="font-semibold">It helps kites fly high!</p>
+                </div>
+                <div class="bg-sky-blue p-4 rounded-2xl shadow-md">
+                    <p class="text-5xl mb-2">🐦</p>
+                    <p class="font-semibold">It helps birds soar in the sky!</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Page 5: Trees -->
+        <div id="page-5" class="page text-center p-4">
+            <h2 class="text-4xl md:text-6xl font-bold mb-8">Terrific Trees! 🌳</h2>
+            <div class="tree-graphic mx-auto mb-8">
+                <div class="tree-leaves"></div>
+                <div class="tree-trunk"></div>
+            </div>
+            <p class="text-lg md:text-xl max-w-xl mx-auto mb-6">Trees are like giant green superheroes! Click the button to see what they give us.</p>
+            <button id="tree-fact-button" class="fun-button bg-forest-green text-white text-xl font-bold py-3 px-6 rounded-full shadow-lg">What do they give us?</button>
+            <div id="tree-facts" class="mt-6 space-y-2"></div>
+        </div>
+
+        <!-- Page 6: Animals -->
+        <div id="page-6" class="page text-center p-4">
+            <h2 class="text-4xl md:text-6xl font-bold mb-8">Amazing Animals! 🐾</h2>
+            <p class="text-lg md:text-xl max-w-xl mx-auto mb-6">Animals are our friends and also natural resources! They help our world in many ways.</p>
+            <div class="flex justify-center flex-wrap gap-4 text-6xl">
+                <div class="bg-white p-4 rounded-2xl shadow-md transform hover:scale-110 transition-transform">🐄<p class="text-base font-semibold mt-2">Gives us milk</p></div>
+                <div class="bg-white p-4 rounded-2xl shadow-md transform hover:scale-110 transition-transform">🐑<p class="text-base font-semibold mt-2">Gives us wool</p></div>
+                <div class="bg-white p-4 rounded-2xl shadow-md transform hover:scale-110 transition-transform">🐝<p class="text-base font-semibold mt-2">Makes honey</p></div>
+                <div class="bg-white p-4 rounded-2xl shadow-md transform hover:scale-110 transition-transform">🐕<p class="text-base font-semibold mt-2">Helps people</p></div>
+            </div>
+        </div>
+
+        <!-- Page 7: Rocks & Minerals -->
+        <div id="page-7" class="page text-center p-4">
+            <h2 class="text-4xl md:text-6xl font-bold mb-8">Cool Rocks & Minerals! 💎</h2>
+            <div class="text-8xl mb-8">🪨</div>
+            <p class="text-lg md:text-xl max-w-2xl mx-auto mb-6">Look down at the ground! Rocks are everywhere. Inside the Earth, there are special shiny rocks called minerals.</p>
+            <div class="flex justify-center flex-wrap gap-4 text-xl font-semibold">
+                <div class="bg-stone-gray p-4 rounded-2xl shadow-md">🏠 For Houses</div>
+                <div class="bg-stone-gray p-4 rounded-2xl shadow-md">💍 For Jewelry</div>
+                <div class="bg-stone-gray p-4 rounded-2xl shadow-md">📱 For Phones</div>
+                <div class="bg-stone-gray p-4 rounded-2xl shadow-md">🛣️ For Roads</div>
+            </div>
+        </div>
+        
+        <!-- Page 8: Be a Helper! -->
+        <div id="page-8" class="page text-center p-4">
+            <h2 class="text-4xl md:text-6xl font-bold mb-4">Be an Earth Helper! ❤️</h2>
+            <p class="text-lg md:text-xl max-w-xl mx-auto mb-6">Since these treasures are so special, we need to take care of them! Click to make a promise!</p>
+            <div class="space-y-4 max-w-md mx-auto">
+                <button class="pledge-button w-full text-left p-4 bg-white rounded-2xl shadow-md flex items-center justify-between text-xl font-semibold" data-pledge="water">
+                    Turn off the tap when I brush! 💧
+                    <span class="pledge-star text-3xl opacity-0">⭐</span>
+                </button>
+                <button class="pledge-button w-full text-left p-4 bg-white rounded-2xl shadow-md flex items-center justify-between text-xl font-semibold" data-pledge="energy">
+                    Turn off lights when I leave! 💡
+                    <span class="pledge-star text-3xl opacity-0">⭐</span>
+                </button>
+                <button class="pledge-button w-full text-left p-4 bg-white rounded-2xl shadow-md flex items-center justify-between text-xl font-semibold" data-pledge="recycle">
+                    Recycle paper and plastic! ♻️
+                    <span class="pledge-star text-3xl opacity-0">⭐</span>
+                </button>
+                <button class="pledge-button w-full text-left p-4 bg-white rounded-2xl shadow-md flex items-center justify-between text-xl font-semibold" data-pledge="litter">
+                    Keep our Earth clean! 🗑️
+                    <span class="pledge-star text-3xl opacity-0">⭐</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Page 9: You are a Helper! -->
+        <div id="page-9" class="page text-center p-4">
+            <div class="text-8xl mb-4">🎉</div>
+            <h2 class="text-4xl md:text-6xl font-bold mb-4">You are a Natural Resource Helper! ⭐</h2>
+            <p class="text-xl md:text-2xl max-w-2xl mx-auto mb-8">Every little bit helps! Thank you for helping Mother Earth stay happy and healthy for everyone!</p>
+            <button onclick="navigateTo(0)" class="fun-button bg-water-blue text-white text-2xl font-bold py-4 px-8 rounded-full shadow-lg">Play Again!</button>
+        </div>
+    </main>
+
+    <script>
+        const pages = [
+            { id: 0, title: 'Start', emoji: '🌍' },
+            { id: 1, title: 'What?', emoji: '🤔' },
+            { id: 2, title: 'Sun', emoji: '☀️' },
+            { id: 3, title: 'Water', emoji: '💧' },
+            { id: 4, title: 'Air', emoji: '🌬️' },
+            { id: 5, title: 'Trees', emoji: '🌳' },
+            { id: 6, title: 'Animals', emoji: '🐾' },
+            { id: 7, title: 'Rocks', emoji: '💎' },
+            { id: 8, title: 'Help', emoji: '❤️' },
+            { id: 9, title: 'Finish', emoji: '⭐' }
+        ];
+        let currentPage = 0;
+
+        const sunFactsData = [
+            "It helps dry our clothes!",
+            "It makes electricity with special panels!",
+            "It helps flowers bloom!",
+            "It gives us Vitamin D for strong bones!"
+        ];
+        let sunFactIndex = 0;
+
+        const treeFactsData = [
+            "They give us the air we breathe (oxygen)!",
+            "Wood for our houses and furniture!",
+            "Paper for drawing and writing!",
+            "Yummy fruits to eat!",
+            "Homes for birds and squirrels!"
+        ];
+        let treeFactIndex = 0;
+
+        function navigateTo(pageId) {
+            const currentActivePage = document.querySelector('.page.active');
+            if (currentActivePage) {
+                currentActivePage.classList.remove('active');
+            }
+            const newActivePage = document.getElementById(`page-${pageId}`);
+            if (newActivePage) {
+                newActivePage.classList.add('active');
+            }
+            
+            const navButtons = document.querySelectorAll('.nav-button');
+            navButtons.forEach(btn => {
+                btn.classList.remove('active');
+                if (parseInt(btn.dataset.pageId) === pageId) {
+                    btn.classList.add('active');
+                }
+            });
+            currentPage = pageId;
+        }
+
+        function createNav() {
+            const navContainer = document.getElementById('nav-container');
+            pages.forEach(page => {
+                const button = document.createElement('button');
+                button.className = 'nav-button p-2 rounded-full text-2xl';
+                button.dataset.pageId = page.id;
+                button.innerHTML = `<span class="hidden sm:inline">${page.title}</span><span class="sm:hidden">${page.emoji}</span>`;
+                button.onclick = () => navigateTo(page.id);
+                if (page.id === 0) button.classList.add('active');
+                navContainer.appendChild(button);
+            });
+        }
+        
+        function showNextSunFact() {
+            if (sunFactIndex < sunFactsData.length) {
+                const factsContainer = document.getElementById('sun-facts');
+                const factDiv = document.createElement('div');
+                factDiv.className = 'info-bubble bg-white p-3 rounded-lg shadow-sm';
+                factDiv.textContent = sunFactsData[sunFactIndex];
+                factsContainer.appendChild(factDiv);
+                setTimeout(() => factDiv.classList.add('show'), 10);
+                sunFactIndex++;
+                if (sunFactIndex === sunFactsData.length) {
+                    document.getElementById('sun-fact-button').textContent = "That's all!";
+                    document.getElementById('sun-fact-button').disabled = true;
+                }
+            }
+        }
+
+        function showNextTreeFact() {
+            if (treeFactIndex < treeFactsData.length) {
+                const factsContainer = document.getElementById('tree-facts');
+                const factDiv = document.createElement('div');
+                factDiv.className = 'info-bubble bg-white p-3 rounded-lg shadow-sm';
+                factDiv.textContent = treeFactsData[treeFactIndex];
+                factsContainer.appendChild(factDiv);
+                setTimeout(() => factDiv.classList.add('show'), 10);
+                treeFactIndex++;
+                 if (treeFactIndex === treeFactsData.length) {
+                    document.getElementById('tree-fact-button').textContent = "Wow!";
+                    document.getElementById('tree-fact-button').disabled = true;
+                }
+            }
+        }
+
+        function setupPledgeButtons() {
+            const buttons = document.querySelectorAll('.pledge-button');
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    button.classList.toggle('pledged');
+                    const star = button.querySelector('.pledge-star');
+                    star.style.opacity = button.classList.contains('pledged') ? '1' : '0';
+                });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            createNav();
+            navigateTo(0);
+
+            document.getElementById('sun-fact-button').addEventListener('click', showNextSunFact);
+            document.getElementById('tree-fact-button').addEventListener('click', showNextTreeFact);
+            setupPledgeButtons();
+
+            const ctx = document.getElementById('waterChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Drinking', 'Bathing', 'Watering Plants', 'Swimming'],
+                    datasets: [{
+                        label: 'How We Use Water',
+                        data: [10, 20, 30, 40],
+                        backgroundColor: [
+                            '#60A5FA',
+                            '#3B82F6',
+                            '#2563EB',
+                            '#1D4ED8'
+                        ],
+                        borderColor: '#FFFBF5',
+                        borderWidth: 3,
+                        borderRadius: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: true,
+                            backgroundColor: '#8D5B4C',
+                            titleColor: '#FFFBF5',
+                            bodyColor: '#FFFBF5',
+                            cornerRadius: 10,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Super important!';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            display: false
+                        },
+                        x: {
+                           ticks: {
+                               color: '#8D5B4C',
+                               font: {
+                                   size: 14,
+                                   weight: 'bold'
+                               }
+                           },
+                           grid: {
+                               display: false
+                           }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
